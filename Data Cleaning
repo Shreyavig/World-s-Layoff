@@ -1,0 +1,144 @@
+use world_layoffs;
+select * from layoffs;
+-- 1) Removing Duplicates
+-- 2) Standardizing the data
+-- 3) Null Values
+-- 4) Remove Any Columns
+
+create table layoffs2 
+like layoffs;
+
+select * from layoffs;
+
+insert layoffs2
+select * from layoffs;
+select * from layoffs2;
+-- 1) Removing Duplicates
+
+select * from(
+select *,
+row_number() over ( partition by company,location,industry,total_laid_off ,percentage_laid_off,'date',stage,country,funds_raised_millions) rn 
+from layoffs2) x
+where x.rn>1;
+
+-- We need to delete those rows which are greater than 1 .
+
+CREATE TABLE `layoffs_duplicate` (
+  `company` text,
+  `location` text,
+  `industry` text,
+  `total_laid_off` int DEFAULT NULL,
+  `percentage_laid_off` text,
+  `date` text,
+  `stage` text,
+  `country` text,
+  `funds_raised_millions` int DEFAULT NULL,
+   `rn`int
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+select * from layoffs_duplicate;
+
+insert into layoffs_duplicate
+select *,
+row_number() over ( partition by company,location,industry,total_laid_off ,percentage_laid_off,'date',stage,country,funds_raised_millions) rn 
+from layoffs2 ;
+
+delete from 
+layoffs_duplicate 
+where rn>1;
+
+select * from layoffs_duplicate ;
+
+-- Standardizing Data
+#removing spaces from company
+update layoffs_duplicate
+set company =trim(company)
+
+select * from layoffs_duplicate
+# Crypto and Crypto currency are same . So setting crypto currency as crypto
+select * from layoffs_duplicate
+where industry like "Crypto%";
+
+update layoffs_duplicate
+set industry ="Crypto"
+where industry like "Crypto%" ;
+# removing . from the end of the country name using trailing 
+
+select distinct country , trim(Trailing '.' from country) from 
+layoffs_duplicate
+;
+ 
+update layoffs_duplicate
+set country = trim(Trailing '.' from country)
+where country like "United States%";
+select * from layoffs_duplicate;
+# Changing Date format
+select `date` ,
+str_to_date(`date`,'%m/%d/%Y')
+from layoffs_duplicate;
+update layoffs_duplicate
+set `date`=str_to_date(`date`,'%m/%d/%Y')
+select * from layoffs_duplicate;
+# Changing data type of date from text to date.
+alter table layoffs_duplicate
+modify column `date` DATE;
+
+-- Checked for nulls in  total_laid_off 
+Select * from layoffs_duplicate
+where total_laid_off is null;
+-- Also percentage_laid_off was null. 
+Select * from layoffs_duplicate
+where total_laid_off is null
+and percentage_laid_off is null;
+
+-- Checked for company Airbnb as in one row industry was null and in other it was not null.
+select * from layoffs_duplicate
+where
+company ='Airbnb';
+
+
+
+-- Set the industry column to NUll where it is blank
+update layoffs_duplicate
+set industry =NULL 
+where
+industry ='';
+
+select * from layoffs_duplicate 
+where industry is null 
+or industry='';
+
+-- Did self join
+select t1.industry,t2.industry
+from layoffs_duplicate t1
+join layoffs_duplicate t2
+on
+t1.company=t2.company
+where
+(t1.industry is null or t1.industry= '')
+and t2.industry is not null;
+
+update layoffs_duplicate t1
+join layoffs_duplicate t2 
+on t1.company=t2.company
+set t1.industry= t2.industry 
+where
+t1.industry is null 
+and t2.industry is not null
+
+select * from layoffs_duplicate 
+where industry is null 
+or company like "Bally%";
+
+-- Deleting rows with total_laid_off and percentage_laid_off values as null
+
+DELETE from layoffs_duplicate
+where total_laid_off is null
+and percentage_laid_off is null;
+
+
+select * from layoffs_duplicate;
+
+
+alter table layoffs_duplicate
+drop column rn;
